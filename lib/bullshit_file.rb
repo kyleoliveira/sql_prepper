@@ -45,7 +45,7 @@ class BullshitFile < StrictTsv
         puts "      VALUES (#{self.class.fancify_cols( line_hash.keys.collect{ |k| line_hash[k] } )})".gsub(/[\"]/, '\'')
       when :update
         puts "UPDATE #{table}"
-        puts "  SET #{self.class.update_str(line_hash)}"
+        puts "  SET #{ self.class.update_str(line_hash.reject{|k, _| @primary_keys.any? { |pk| pk == k } }) }"
         print "  WHERE '#{@primary_keys.first}' = '#{line_hash[@primary_keys.first]}'"
         if @primary_keys.length > 1
           @primary_keys.rest.each_with_index do |k, i|
