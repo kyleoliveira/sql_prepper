@@ -9,5 +9,17 @@ class Array
 
 end
 
+class Hash
 
+  # @return [Hash] duplicate of self without entries that have nil values
+  def compact
+    self.select { |_, value| !value.nil? }
+  end
+
+  # @return [Hash] self without entries that have nil values
+  def compact!
+    self.reject! { |_, value| value.nil? }
+  end
+
+end
 
