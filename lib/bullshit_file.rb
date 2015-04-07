@@ -48,7 +48,7 @@ class BullshitFile < StrictTsv
         puts "  SET #{ self.class.update_str(line_hash.reject{|k, _| @primary_keys.any? { |pk| pk == k } }) }"
         print "  WHERE '#{@primary_keys.first}' = '#{line_hash[@primary_keys.first]}'"
         if @primary_keys.length > 1
-          @primary_keys.rest.each_with_index do |k, i|
+          @primary_keys.rest.each do |k|
             print "\n  AND '#{k}' = '#{line_hash[k]}'"
           end
         end
