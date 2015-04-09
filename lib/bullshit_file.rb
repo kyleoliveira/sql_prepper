@@ -5,15 +5,21 @@ require_relative 'strict_tsv.rb'
 # Converts a Tab-delimited file of database table insertions into a SQL file for Oracle.
 class BullshitFile < StrictTsv
 
-  attr_accessor :mode, :table, :primary_keys, :ignore_empty
+  attr_accessor :mode, :table, :primary_keys, :ignore_empty, :guid_cols, :jira
   alias_method :ignore_empty?, :ignore_empty
 
-  def initialize(filepath, query_mode, target_table, pk, ignore_empty = false)
-      super(filepath)
-      @mode ||= query_mode
-      @table ||= target_table
-      @primary_keys ||= pk
-      @ignore_empty ||= ignore_empty
+  def initialize(filepath, query_mode, target_table, pk, ignore_empty = false, gcols = [], jira = nil)
+    super(filepath)
+    @mode ||= query_mode
+    @table ||= target_table
+    @primary_keys ||= pk
+    @ignore_empty ||= ignore_empty
+    @jira ||= jira
+
+    unless gcols.nil?
+      @guid_cols = Hash[gcols.zip(['sys_guid()'] * gcols.length)]
+    end
+
   end
 
   class << self
@@ -23,15 +29,15 @@ class BullshitFile < StrictTsv
     end
 
     def fancify_cols(cols)
-    cols.to_s.gsub(/[\[\]]/, '')
+      cols.to_s.gsub(/[\[\]]/, '')
     end
 
     def update_str(line_hash)
       line_hash.to_a
                .to_s
                .gsub(/^[\[](.*)[\]]$/, '\1')
-               .gsub(/[\[][\"]/, '\'')
-               .gsub(/[\"], /, '\' = \'')
+               .gsub(/[\[][\"]/, '')
+               .gsub(/[\"], /, ' = \'')
                .gsub(/[\]],/, '\',')
                .gsub(/[\]]$/, '\'')
                .gsub(/[\"]/, '')
@@ -40,22 +46,23 @@ class BullshitFile < StrictTsv
   end
 
   def format_line(line_hash)
+    line_hash.merge!(@guid_cols) unless @guid_cols.nil?
     case @mode
       when :insert
-        puts '  INSERT INTO'
-        puts "    #{table} (#{self.class.fancify_cols(line_hash.keys) })".gsub(/[\"]/, '\'')
-        puts "      VALUES (#{self.class.fancify_cols( line_hash.keys.collect{ |k| line_hash[k] } )})".gsub(/[\"]/, '\'')
+        puts "  INTO #{@table} (#{self.class.fancify_cols(line_hash.keys) })".gsub(/[\"]/, '')
+        puts "    VALUES (#{self.class.fancify_cols( line_hash.keys.collect{ |k| line_hash[k] } )})".gsub(/[\"]/, '\'')
+                                                                                                    .gsub(/['"]sys_guid\(\)['"]/, 'sys_guid()')
       when :update
-        puts "UPDATE #{table}"
+        puts "UPDATE #{@table}"
         print '  SET '
         puts self.class
                  .update_str(line_hash.compact
                                       .reject{|k, v| @primary_keys.any? { |pk| (pk == k) ||
                                                                                (ignore_empty? && v.empty?) } })
-        print "  WHERE '#{@primary_keys.first}' = '#{line_hash[@primary_keys.first]}'"
+        print "  WHERE #{@primary_keys.first} = '#{line_hash[@primary_keys.first]}'"
         if @primary_keys.length > 1
           @primary_keys.rest.each do |k|
-            print "\n  AND '#{k}' = '#{line_hash[k]}'"
+            print "\n  AND #{k} = '#{line_hash[k]}'"
           end
         end
         puts ';'
@@ -65,14 +72,24 @@ class BullshitFile < StrictTsv
   end
 
   def read_file
-      parse{ |row| format_line(row) }
+      parse do |row|
+        row.merge!(@guid_cols) unless @guid_cols.nil?
+        format_line(row)
+      end
+  end
+
+  def save_point
+    "SAVEPOINT #{@jira.gsub(/[-]/, '_')}_#{@table.gsub('KFS.', '')}"
   end
 
   def header
-      puts '-- KFS.....'
+      puts "-- #{@jira}"
       puts '-- AUTHOR: Kyle Oliveira <kyle.oliveira@cornell.edu>'
       puts "-- DESC: Updates for the #{@table} table"
       puts
+      puts "#{save_point};"
+      puts 'set define off;'
+
     case @mode
       when :insert
         puts 'INSERT ALL'
@@ -86,6 +103,8 @@ class BullshitFile < StrictTsv
         puts 'SELECT 1 FROM dual;'
       else
     end
+    puts "-- ROLLBACK TO #{save_point};"
+    puts
   end
 
 end

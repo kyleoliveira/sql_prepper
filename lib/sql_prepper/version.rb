@@ -27,9 +27,17 @@ module SQLPrepper
                 'The name of the table to perform the operation on', String) do |val|
           selected_options[:table] = val
         end
+        opts.on('-j', '--jira=val',
+                'The JIRA number', String) do |val|
+          selected_options[:jira] = val
+        end
         opts.on('-p', '--pk x,y,z',
                 'The primary keys to use for the UPDATE operation.', Array) do |val|
           selected_options[:pk] = val
+        end
+        opts.on('-g', '--guids x,y,z',
+                'Columns that are not defined and should be set by sys_guid().', Array) do |val|
+          selected_options[:guid_cols] = val
         end
         opts.on('-v', '--verbose',
                 'Increases verbosity') do
