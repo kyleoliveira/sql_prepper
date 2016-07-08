@@ -13,13 +13,14 @@ options = {
   ignore_empty: false,
   pk: [],
   guid_cols: [],
-  jira: nil
+  jira: nil,
+  version_number: nil
 }
 SQLPrepper::parse_opts(options)
 
 # == Do it to it ==
 
-bs = BullshitFile.new options[:in_file], options[:mode], options[:table], options[:pk], options[:ignore_empty], options[:guid_cols], options[:jira]
+bs = BullshitFile.new options[:in_file], options[:mode], options[:table], options[:pk], options[:ignore_empty], options[:guid_cols], options[:jira], options[:version_number]
 
 $stdout.reopen(options[:out_file], 'w')
 $stdout.sync = true

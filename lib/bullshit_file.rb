@@ -5,10 +5,10 @@ require_relative 'strict_tsv.rb'
 # Converts a Tab-delimited file of database table insertions into a SQL file for Oracle.
 class BullshitFile < StrictTsv
 
-  attr_accessor :mode, :table, :primary_keys, :ignore_empty, :guid_cols, :jira
+  attr_accessor :mode, :table, :primary_keys, :ignore_empty, :guid_cols, :jira, :version_number
   alias_method :ignore_empty?, :ignore_empty
 
-  def initialize(filepath, query_mode, target_table, pk, ignore_empty = false, gcols = [], jira = nil)
+  def initialize(filepath, query_mode, target_table, pk, ignore_empty = false, gcols = [], jira = nil, version_number = false)
     super(filepath)
     @mode ||= query_mode
     @table ||= target_table
@@ -18,6 +18,10 @@ class BullshitFile < StrictTsv
 
     unless gcols.nil?
       @guid_cols = Hash[gcols.zip(['sys_guid()'] * gcols.length)]
+    end
+
+    if version_number
+      @version_number = {'VER_NBR' => '1'}
     end
 
   end
@@ -47,6 +51,7 @@ class BullshitFile < StrictTsv
 
   def format_line(line_hash)
     line_hash.merge!(@guid_cols) unless @guid_cols.nil?
+    line_hash.merge!(@version_number) unless @version_number.nil?
     case @mode
       when :insert
         puts "  INTO #{@table} (#{self.class.fancify_cols(line_hash.keys) })".gsub(/[\"]/, '')
@@ -79,7 +84,7 @@ class BullshitFile < StrictTsv
   end
 
   def save_point
-    "SAVEPOINT #{@jira.gsub(/[-]/, '_')}_#{@table.gsub('KFS.', '')}"
+    "SAVEPOINT #{@jira.gsub(/[-]/, '_')}_#{@table.gsub('KFS.', '').gsub('CYNERGY.', '')}"
   end
 
   def header

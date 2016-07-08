@@ -31,6 +31,10 @@ module SQLPrepper
                 'The JIRA number', String) do |val|
           selected_options[:jira] = val
         end
+        opts.on('-n', '--version-number',
+                'Add a version number (insert only)') do
+          selected_options[:version_number] = true
+        end
         opts.on('-p', '--pk x,y,z',
                 'The primary keys to use for the UPDATE operation.', Array) do |val|
           selected_options[:pk] = val
